@@ -8,14 +8,15 @@ import (
 	"github.com/satori/go.uuid"
 	"strconv"
 	"github.com/kataras/iris/context"
+	"time"
 )
 
-const DEFAULT_TTL int64 = 60 * 60
+const DEFAULT_TTL time.Duration = time.Hour
 const DEFAULT_URL = "https://google.com"
 
-func getTTL(ttl string) int64 {
-	if time, err := strconv.ParseInt(ttl, 10, 64); ttl != "" && err == nil {
-		return time
+func getTTL(ttl string) time.Duration {
+	if parsedTime, err := strconv.ParseInt(ttl, 10, 64); ttl != "" && err == nil {
+		return time.Duration(parsedTime) * time.Second
 	}
 	return DEFAULT_TTL
 }
@@ -23,7 +24,7 @@ func getTTL(ttl string) int64 {
 type Storage interface {
 	Set(key string, url string) error
 	Get(key string) (url string, err error)
-	SetTTL(key string, ttl int64) error
+	SetTTL(key string, ttl time.Duration) error
 }
 
 func createLink(storage Storage) context.Handler {

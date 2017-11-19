@@ -1,7 +1,16 @@
 package mapStorage
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
+
+/**
+	Простая in-memory реализация key-value стораджа с протуханием
+	TODO: потенциально пофиксить возможные конфликты многопоточностти (map не потокобезопасный)
+	TODO: наприсать еще пару реализаций (Например для Redis или блокчейна ¯\_(ツ)_/¯)
+ */
 type MapStorage map[string]string
 
 func (v *MapStorage) Set(key string, url string) error {
@@ -21,8 +30,10 @@ func (v *MapStorage) Get(key string) (string, error) {
 	return "", errors.New("no such key")
 }
 
-func (v *MapStorage) SetTTL(key string, ttl int64) error {
-	// TODO: implement
+func (v *MapStorage) SetTTL(key string, ttl time.Duration) error {
+	time.AfterFunc(ttl, func() {
+		delete(*v, key)
+	})
 	return nil
 }
 
