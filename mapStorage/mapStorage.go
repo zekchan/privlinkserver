@@ -5,36 +5,38 @@ import (
 	"time"
 )
 
-
 /**
 	Простая in-memory реализация key-value стораджа с протуханием
 	TODO: потенциально пофиксить возможные конфликты многопоточностти (map не потокобезопасный)
 	TODO: наприсать еще пару реализаций (Например для Redis или блокчейна ¯\_(ツ)_/¯)
  */
-type MapStorage map[string]string
+type StoredData struct {
+	value string;
+	timer *time.Timer
+}
+type MapStorage map[string]StoredData
 
-func (v *MapStorage) Set(key string, url string) error {
-	(*v)[key] = url
+func (v *MapStorage) Set(key string, url string, ttl time.Duration) error {
+	(*v)[key] = StoredData{
+		value: url,
+		timer: time.AfterFunc(ttl, func() {
+			delete(*v, key)
+		}),
+	}
 	return nil
 }
 
 func (v *MapStorage) Get(key string) (string, error) {
 	str := *v
-	url, ok := str[key]
+	data, ok := str[key]
 
 	if ok {
+		data.timer.Stop()
 		delete(str, key)
-		return url, nil
+		return data.value, nil
 	}
 
 	return "", errors.New("no such key")
-}
-
-func (v *MapStorage) SetTTL(key string, ttl time.Duration) error {
-	time.AfterFunc(ttl, func() {
-		delete(*v, key)
-	})
-	return nil
 }
 
 func CreateMapStorage() *MapStorage {

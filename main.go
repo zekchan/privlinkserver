@@ -22,9 +22,8 @@ func getTTL(ttl string) time.Duration {
 }
 
 type Storage interface {
-	Set(key string, url string) error
+	Set(key string, url string, ttl time.Duration) error
 	Get(key string) (url string, err error)
-	SetTTL(key string, ttl time.Duration) error
 }
 
 func createLink(storage Storage) context.Handler {
@@ -45,8 +44,7 @@ func createLink(storage Storage) context.Handler {
 
 		key := uuid.NewV4().String()
 
-		storage.Set(key, url)
-		storage.SetTTL(key, getTTL(ctx.FormValue("ttl")))
+		storage.Set(key, url, getTTL(ctx.FormValue("ttl")))
 
 		ctx.JSON(Response{
 			Key: key,
