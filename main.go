@@ -12,7 +12,6 @@ import (
 )
 
 const DEFAULT_TTL time.Duration = time.Hour
-const DEFAULT_URL = "https://google.com"
 
 func getTTL(ttl string) time.Duration {
 	if parsedTime, err := strconv.ParseInt(ttl, 10, 64); ttl != "" && err == nil {
@@ -52,14 +51,14 @@ func createLink(storage Storage) context.Handler {
 	}
 }
 func redirect(storage Storage) context.Handler {
-
+	defaultUrl := EnvOr("DEFAULT_REDIRECT", "https://google.com")
 	return func(ctx iris.Context) {
 		url, err := storage.Get(ctx.Params().Get("key"))
 
 		if err == nil {
 			ctx.Redirect(url)
 		} else {
-			ctx.Redirect(DEFAULT_URL)
+			ctx.Redirect(defaultUrl)
 		}
 	}
 }
@@ -71,8 +70,9 @@ func main() {
 		AllowCredentials: true,
 	}))
 	var storage Storage = mapStorage.CreateMapStorage()
+	var port = EnvOr("PORT", "80")
 
 	app.Post("/create", createLink(storage))
 	app.Get("/{key}", redirect(storage))
-	app.Run(iris.Addr(":8080"))
+	app.Run(iris.Addr(":" + port))
 }
