@@ -4,8 +4,6 @@ import (
 	"github.com/kataras/iris"
 	"github.com/kataras/iris/middleware/recover"
 	"github.com/iris-contrib/middleware/cors"
-	"github.com/zekchan/privlinkserver/mapStorage"
-	"github.com/satori/go.uuid"
 	"strconv"
 	"github.com/kataras/iris/context"
 	"time"
@@ -25,7 +23,7 @@ type Storage interface {
 	Get(key string) (url string, err error)
 }
 
-func createLink(storage Storage) context.Handler {
+func createLink(storage Storage, keyGenerator func() string) context.Handler {
 	type Response struct {
 		Key string `json:"key"`
 	}
@@ -41,7 +39,7 @@ func createLink(storage Storage) context.Handler {
 			return
 		}
 
-		key := uuid.NewV4().String()
+		key := keyGenerator()
 
 		storage.Set(key, url, getTTL(ctx.FormValue("ttl")))
 
@@ -62,6 +60,7 @@ func redirect(storage Storage) context.Handler {
 		}
 	}
 }
+
 func main() {
 	app := iris.New()
 	app.Use(recover.New())
@@ -69,10 +68,11 @@ func main() {
 		AllowedOrigins:   []string{"*"},
 		AllowCredentials: true,
 	}))
-	var storage Storage = mapStorage.CreateMapStorage()
+	storage := getStorage()
+	keyGenerator := getKeyGenerator()
 	var port = EnvOr("PORT", "80")
 
-	app.Post("/create", createLink(storage))
+	app.Post("/create", createLink(storage, keyGenerator))
 	app.Get("/{key}", redirect(storage))
 	app.Run(iris.Addr(":" + port))
 }
