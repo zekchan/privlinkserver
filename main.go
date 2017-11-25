@@ -6,7 +6,12 @@ import (
 	"github.com/iris-contrib/middleware/cors"
 	"strconv"
 	"github.com/kataras/iris/context"
+	"github.com/zekchan/privlinkserver/utils"
 	"time"
+	"os"
+	"log"
+	"github.com/zekchan/privlinkserver/keyGenerators"
+	"github.com/zekchan/privlinkserver/storages"
 )
 
 const DEFAULT_TTL time.Duration = time.Hour
@@ -23,6 +28,42 @@ type Storage interface {
 	Get(key string) (url string, err error)
 }
 
+func getStorage() Storage {
+	storages := map[string]func() Storage{
+		"MAP": func() Storage {
+			return storages.CreateMapStorage()
+		},
+	}
+	configStorage := os.Getenv("STORAGE")
+	useStorage := "MAP"
+
+	for key := range storages {
+		if key == configStorage {
+			useStorage = key
+			break
+		}
+	}
+
+	log.Printf("Used %v storage", useStorage)
+	return storages[useStorage]()
+}
+func getKeyGenerator() func() string {
+	generators := map[string]func() string{
+		"UUID": keyGenerators.UUIDGenerator,
+		"RAND": keyGenerators.RandomKeyGenerator,
+	}
+	configGenerator := os.Getenv("GENERATOR")
+	useGenerator := "UUID"
+	for key := range generators {
+		if key == configGenerator {
+			useGenerator = key
+			break
+		}
+	}
+	log.Printf("Used %v generator", useGenerator)
+	return generators[useGenerator]
+
+}
 func createLink(storage Storage, keyGenerator func() string) context.Handler {
 	type Response struct {
 		Key string `json:"key"`
@@ -49,7 +90,7 @@ func createLink(storage Storage, keyGenerator func() string) context.Handler {
 	}
 }
 func redirect(storage Storage) context.Handler {
-	defaultUrl := EnvOr("DEFAULT_REDIRECT", "https://google.com")
+	defaultUrl := utils.EnvOr("DEFAULT_REDIRECT", "https://google.com")
 	return func(ctx iris.Context) {
 		url, err := storage.Get(ctx.Params().Get("key"))
 
@@ -70,7 +111,7 @@ func main() {
 	}))
 	storage := getStorage()
 	keyGenerator := getKeyGenerator()
-	var port = EnvOr("PORT", "80")
+	var port = utils.EnvOr("PORT", "80")
 
 	app.Post("/create", createLink(storage, keyGenerator))
 	app.Get("/{key}", redirect(storage))
